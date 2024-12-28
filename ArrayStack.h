@@ -44,7 +44,7 @@ template<typename Range, size_t N>
 constexpr auto MakeArray( Range&& rng )
   requires std::ranges::sized_range<decltype( rng )>
 {
-  int64_t count = static_cast<int64_t>( std::ranges::size( rng ) );
+  auto count = static_cast<int64_t>( std::ranges::size( rng ) );
   using ValType = std::iter_value_t<decltype( rng )>;
   std::array<ValType, N> arr;
   std::ranges::copy_n( std::begin( rng ), count, std::begin( arr ) );
@@ -85,50 +85,48 @@ class ArrayStack
 {
 public:
 
-  static constexpr size_t kEmptyStackDesignation = size_t( -1 );
-
-  using Array = std::array<T, N>;
-  using value_type = typename Array::value_type;
-  using reference = typename Array::reference;
+  using Array           = std::array<T, N>;
+  using container_type  = Array;
+  using value_type      = typename Array::value_type;
+  using reference       = typename Array::reference;
   using const_reference = typename Array::const_reference;
-  using size_type = typename Array::size_type;
-  using container_type = Array;
+  using size_type       = typename Array::size_type;
 
   ArrayStack() = default;
 
   constexpr explicit ArrayStack( const Array& c ) :
     c_( c ),
-    top_( c.empty() ? kEmptyStackDesignation : (c.size() - 1) )
+    top_( c.size() )
   {
   }
 
   template <typename InIt>
   constexpr ArrayStack( InIt first, InIt last ) noexcept( std::is_nothrow_constructible_v<Array, InIt, InIt> ) :
     c_{ MakeArray<InIt, N>( first, last ) },
-    top_( first == last ? kEmptyStackDesignation : (std::distance( first, last ) - 1 ))
+    top_( static_cast<size_t>( std::distance( first, last ) ) )
   {
   }
 
   template <typename Range>
   constexpr ArrayStack( std::from_range_t, Range&& rng ) :
     c_( MakeArray<Range, N>( rng ) ),
-    top_( rng.empty() ? kEmptyStackDesignation : (rng.size() - 1) )
+    top_( rng.size() )
   {
   }
 
   constexpr bool empty() const noexcept
   {
-    return top_ == kEmptyStackDesignation;
+    return top_ == 0;
   }
 
   constexpr bool full() const noexcept
   {
-    return top_ == (N - 1);
+    return top_ == N;
   }
 
   constexpr size_type size() const noexcept
   {
-    return top_ + 1;
+    return top_;
   }
 
   constexpr size_type capacity() const noexcept
@@ -138,48 +136,43 @@ public:
 
   constexpr void clear() noexcept
   {
-    top_ = kEmptyStackDesignation;
+    top_ = 0;
   }
 
   constexpr reference top() noexcept
   {
-    //if( empty() )
-    //  throw std::out_of_range( "empty stack" );
+    //if( empty() ) throw std::out_of_range( "empty stack" );
     assert( !empty() );
-    return c_[top_];
+    return c_[top_-1];
   }
 
   constexpr const_reference top() const noexcept
   {
-    //if( empty() )
-    //  throw std::out_of_range( "empty stack" );
+    //if( empty() ) throw std::out_of_range( "empty stack" );
     assert( !empty() );
-    return c_[top_];
+    return c_[top_-1];
   }
 
   constexpr void push( const value_type& v ) noexcept
   {
-    //if( full() )
-    //  throw std::out_of_range( "stack overflow" );
+    //if( full() ) throw std::out_of_range( "stack overflow" );
     assert( !full() );
-    c_[++top_] = v;
+    c_[top_++] = v;
   }
 
   constexpr void push( value_type&& v ) noexcept
   {
-    //if( full() )
-    //  throw std::out_of_range( "stack overflow" );
+    //if( full() ) throw std::out_of_range( "stack overflow" );
     assert( !full() );
-    c_[++top_] = std::move( v );
+    c_[top_++] = std::move( v );
   }
 
   template <typename Range>
   constexpr void push_range( Range&& rng )
   {
-    //if( ( size() + std::size( rng ) ) > capacity() )
-    //  throw std::out_of_range( "stack overflow" );
+    //if( ( size() + std::size( rng ) ) > capacity() ) throw std::out_of_range( "stack overflow" );
     assert( ( size() + std::size( rng ) ) <= capacity() );
-    auto dest = &( c_[top_ + 1] );
+    auto dest = c_.data() + top_;
     std::ranges::copy( rng, dest );
     top_ += std::size( rng );
   }
@@ -187,25 +180,23 @@ public:
   template <class... Types>
   constexpr decltype(auto) emplace( Types&&... values )
   {
-    //if( full() )
-    //  throw std::out_of_range( "stack overflow" );
-    auto dest = &( c_[++top_] );
+    //if( full() ) throw std::out_of_range( "stack overflow" );
+    auto dest = c_.data() + top_;
     std::construct_at( dest, std::forward<Types>( values )... );
+    ++top_;
   }
 
   constexpr void pop() noexcept
   {
-    //if( empty() )
-    //  throw std::out_of_range( "stack underflow" );
+    //if( empty() ) throw std::out_of_range( "stack underflow" );
     assert( !empty() );
     --top_;
   }
 
   constexpr void swap( ArrayStack& rhs ) noexcept( std::is_nothrow_swappable<Array>::value )
   {
-    // Swap the minimum portion necessary; +1 avoids dealing with kEmptyStackDesignation
-    auto maxTop = std::max( top_+1, rhs.top_+1 );
-    assert( maxTop <= N );
+    // Swap only what is necessary, not the entire arrays
+    auto maxTop = std::max( top_, rhs.top_ );
     for( size_t i = 0; i < maxTop; ++i )
       std::swap( c_[i], rhs.c_[i] );
     std::swap( top_, rhs.top_ );
@@ -225,16 +216,26 @@ public:
 
   constexpr bool operator==( const ArrayStack& rhs ) const noexcept
   {
-    if( top_ != rhs.top_ ) // size mismatch
+    if( top_ != rhs.top_ ) // different sized stacks are not equal
       return false;
-    if( top_ == ArrayStack<T, N>::kEmptyStackDesignation ) // both empty
-      return true;
-    const auto start = std::begin( c_ );
-    const auto end = start + static_cast<ptrdiff_t>( top_+1 );
-    return std::equal( start, end, std::begin( rhs.c_ ) );
+    const auto start = c_.data();
+    const auto end = start + top_;
+    return std::equal( start, end, rhs.c_.data() );
   }
 
-  struct SynthThreeWay
+  constexpr auto operator<=>( const ArrayStack& rhs ) const noexcept
+  {
+    // Can't use std::array::operator<=> because we only compare a subset of elements
+    const auto lstart = c_.data();
+    const auto lend = lstart + top_;
+    const auto rstart = rhs.c_.data();
+    const auto rend = rstart + rhs.top_;
+    return std::lexicographical_compare_three_way( lstart, lend, rstart, rend, SynthThreeWay{} );
+  }
+
+private:
+
+  struct SynthThreeWay // for operator<=>
   {
     template <typename T, std::totally_ordered_with<T> U>
     constexpr auto operator()( const T& lhs, const U& rhs ) const noexcept
@@ -252,37 +253,16 @@ public:
     }
   };
 
-  constexpr auto operator<=>( const ArrayStack& rhs ) const noexcept
-  {
-    // Same number of elements
-    if( top_ == rhs.top_ )
-    {
-      if( top_ == ArrayStack<T, N>::kEmptyStackDesignation ) // both empty
-        return std::strong_ordering::equal;
-
-      const auto lstart = std::begin( c_ );
-      const auto lend = lstart + static_cast<ptrdiff_t>( top_+1 );
-      const auto rstart = std::begin( rhs.c_ );
-      const auto rend = rstart + static_cast<ptrdiff_t>( top_+1 );
-
-      return std::lexicographical_compare_three_way( lstart, lend, rstart, rend,
-                                                     SynthThreeWay{} );
-    }
-
-    // Different number of elements
-    if( top_ == kEmptyStackDesignation ) // left empty, right has 1+ elements
-      return std::strong_ordering::less;
-
-    // Both stacks have 1 or more elements
-    assert( top_ != kEmptyStackDesignation );
-    assert( rhs.top_ != kEmptyStackDesignation );
-    return top_ <=> rhs.top_;
-  }
-
 private:
 
+  // For simplified math, top_ points to where the next element will be pushed
+  // push(x) -> c_[top_++] = x;
+  // pop()   -> --top_;
+  // top()   -> return c_[top_-1];
+  // empty() -> return top_ == 0;
+
   Array c_;
-  size_t top_ = kEmptyStackDesignation; // TODO ptrdiff_t; explore different indexing options
+  size_t top_ = 0;
 
 }; // class ArrayStack
 
