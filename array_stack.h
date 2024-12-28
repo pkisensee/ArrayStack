@@ -14,12 +14,12 @@
 // 
 // -----------------------------------------------------------------------------
 //
-//  Ever needed or wished for std::stack<T, std::array<T,N>>?
+//  Ever needed or wished for std::stack<T, std::array<T,Capacity>>?
 // 
-//  Then array_stack<T, N> is your friend
+//  Then array_stack<T, Capacity> is your friend
 // 
-//  array_stack<T, N> implements a stack of objects T, stored on the actual 
-//  stack using std::array, of maximum capacity N, compatible with std::stack
+//  array_stack<T, Capacity> implements a stack of objects T, stored on the actual 
+//  stack using std::array, of maximum size Capacity, compatible with std::stack
 // 
 //  Features:
 //  * all std::stack methods
@@ -73,27 +73,28 @@ concept BooleanTestable = BooleanTestableImpl<T>
 };
 
 // Helper converts input iterators into an array
-// Usage: std::array<int, N> arr = MakeArray<InIt, N>( vec.begin(), vec.end() );
-template<typename InIt, size_t N>
+// Usage: std::array<int, Capacity> arr = MakeArray<InIt, Capacity>( vec.begin(), vec.end() );
+template<typename InIt, size_t Capacity>
 constexpr auto MakeArray( InIt first, InIt last )
 {
   const auto count = std::distance( first, last );
-  assert( count <= N );
+  assert( count <= Capacity );
   using ValType = typename std::iterator_traits<InIt>::value_type;
-  std::array<ValType, N> arr;
+  std::array<ValType, Capacity> arr;
   std::copy_n( first, count, std::begin( arr ) );
   return arr;
 }
 
 // Helper converts range into an array
-// Usage: std::array<int, N> arr = MakeArray<Range, N>( rng );
-template<typename Range, size_t N>
+// Usage: std::array<int, Capacity> arr = MakeArray<Range, Capacity>( rng );
+template<typename Range, size_t Capacity>
 constexpr auto MakeArray( Range&& rng )
   requires std::ranges::sized_range<decltype( rng )>
 {
   const auto count = static_cast<int64_t>( std::ranges::size( rng ) );
+  assert( count <= Capacity );
   using ValType = std::iter_value_t<decltype( rng )>;
-  std::array<ValType, N> arr;
+  std::array<ValType, Capacity> arr;
   std::ranges::copy_n( std::begin( rng ), count, std::begin( arr ) );
   return arr;
 }
@@ -103,12 +104,12 @@ constexpr auto MakeArray( Range&& rng )
 namespace PKIsensee
 {
 
-template <typename T, size_t N> // stack of objects T; maximum capacity N
+template <typename T, size_t Capacity> // stack of objects T; maximum size Capacity
 class array_stack
 {
 public:
 
-  using Array           = std::array<T, N>;
+  using Array           = std::array<T, Capacity>;
   using container_type  = Array;
   using value_type      = typename Array::value_type;
   using reference       = typename Array::reference;
@@ -126,14 +127,14 @@ public:
   template <typename InIt>
   constexpr array_stack( InIt first, InIt last ) noexcept( std::is_nothrow_constructible_v<Array, InIt, InIt> ) :
     top_( static_cast<size_t>( std::distance( first, last ) ) ),
-    c_{ MakeArray<InIt, N>( first, last ) }
+    c_{ MakeArray<InIt, Capacity>( first, last ) }
   {
   }
 
   template <typename Range>
   constexpr array_stack( std::from_range_t, Range&& rng ) :
     top_( std::size( rng ) ),
-    c_( MakeArray<Range, N>( rng ) )
+    c_( MakeArray<Range, Capacity>( rng ) )
   {
   }
 
@@ -144,7 +145,7 @@ public:
 
   constexpr bool full() const noexcept
   {
-    return top_ == N;
+    return top_ == Capacity;
   }
 
   constexpr size_type size() const noexcept
@@ -154,7 +155,7 @@ public:
 
   constexpr size_type capacity() const noexcept
   {
-    return N;
+    return Capacity;
   }
 
   constexpr void clear() noexcept
@@ -317,8 +318,9 @@ private:
 
 }; // class array_stack
 
-template <typename T, size_t N>
-void constexpr swap( array_stack<T, N>& lhs, array_stack<T, N>& rhs ) noexcept( noexcept( lhs.swap( rhs ) ) )
+template <typename T, size_t Capacity>
+void constexpr swap( array_stack<T, Capacity>& lhs, 
+                     array_stack<T, Capacity>& rhs ) noexcept( noexcept( lhs.swap( rhs ) ) )
 {
   lhs.swap( rhs );
 }
