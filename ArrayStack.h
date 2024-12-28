@@ -25,6 +25,16 @@
 namespace // anonymous
 {
 
+// Define requirements for object comparisons; see SynthThreeWay
+template <typename T>
+concept BooleanTestableImpl = std::convertible_to<T, bool>;
+
+template <typename T>
+concept BooleanTestable = BooleanTestableImpl<T>
+&& requires( T&& a ) {
+  { !static_cast<T&&>( a ) } -> BooleanTestableImpl;
+};
+
 // Helper converts input iterators into an array
 // Usage: std::array<int, N> arr = MakeArray<InIt, N>( vec.begin(), vec.end() );
 template<typename InIt, size_t N>
@@ -62,25 +72,26 @@ namespace PKIsensee
 // Then ArrayStack<T, N> is your friend
 // 
 // Features:
-// * std::stack methods
+// * all std::stack methods
 // * constexpr enabled
 // * non-throwing
-// * full()
-// * capacity()
-// * clear()
-// * direct indexing using operator[] (not part of std::stack, but sometimes useful)
-// * spaceship comparison operator
+// * full(), capacity(), and clear()
+// * direct indexing using operator[] (not part of std::stack, but often useful)
+// * comparison operations
 // * swap
-// * ranges
+// * range support
 // 
 // Doesn't support:
 // * custom allocators
 // * constructing from std::array; use the range or input iterator ctors instead
 // * exceptions from push(), pop(), top()
 // 
+// Requirements:
+// * C++20 and up
+// 
 ///////////////////////////////////////////////////////////////////////////////
 
-template<typename T, size_t N>
+template <typename T, size_t N>
 class ArrayStack
 {
 public:
@@ -141,36 +152,38 @@ public:
 
   constexpr reference top() noexcept
   {
-    //if( empty() ) throw std::out_of_range( "empty stack" );
+    // if( empty() ) throw std::out_of_range( "empty stack" );
     assert( !empty() );
     return c_[top_-1];
   }
 
   constexpr const_reference top() const noexcept
   {
-    //if( empty() ) throw std::out_of_range( "empty stack" );
+    // if( empty() ) throw std::out_of_range( "empty stack" );
     assert( !empty() );
     return c_[top_-1];
   }
 
   constexpr void push( const value_type& v ) noexcept
   {
-    //if( full() ) throw std::out_of_range( "stack overflow" );
+    // if( full() ) throw std::out_of_range( "stack overflow" );
     assert( !full() );
-    c_[top_++] = v;
+    c_[top_] = v;
+    ++top_;
   }
 
   constexpr void push( value_type&& v ) noexcept
   {
-    //if( full() ) throw std::out_of_range( "stack overflow" );
+    // if( full() ) throw std::out_of_range( "stack overflow" );
     assert( !full() );
-    c_[top_++] = std::move( v );
+    c_[top_] = std::move( v );
+    ++top_;
   }
 
   template <typename Range>
   constexpr void push_range( Range&& rng )
   {
-    //if( ( size() + std::size( rng ) ) > capacity() ) throw std::out_of_range( "stack overflow" );
+    // if( ( size() + std::size( rng ) ) > capacity() ) throw std::out_of_range( "stack overflow" );
     assert( ( size() + std::size( rng ) ) <= capacity() );
     auto dest = c_.data() + top_;
     std::ranges::copy( rng, dest );
@@ -180,7 +193,7 @@ public:
   template <class... Types>
   constexpr decltype(auto) emplace( Types&&... values )
   {
-    //if( full() ) throw std::out_of_range( "stack overflow" );
+    // if( full() ) throw std::out_of_range( "stack overflow" );
     auto dest = c_.data() + top_;
     std::construct_at( dest, std::forward<Types>( values )... );
     ++top_;
@@ -188,7 +201,7 @@ public:
 
   constexpr void pop() noexcept
   {
-    //if( empty() ) throw std::out_of_range( "stack underflow" );
+    // if( empty() ) throw std::out_of_range( "stack underflow" );
     assert( !empty() );
     --top_;
   }
@@ -214,6 +227,35 @@ public:
     return c_[i];
   }
 
+private:
+
+  // Synthesize a comparison operation even for those objects that don't support <=> operator.
+  // Used in operator<=> above
+  struct SynthThreeWay
+  {
+    template <typename U, typename V>
+    constexpr auto operator()( const U& lhs, const V& rhs ) const noexcept
+      requires requires
+      {
+        { lhs < rhs } -> BooleanTestable;
+        { lhs > rhs } -> BooleanTestable;
+      }
+    {
+      if constexpr( std::three_way_comparable_with<U, V> )
+        return lhs <=> rhs; // U supports operator <=>
+      else
+      { // implement <=> equivalent using existing < and > operators
+        if( lhs < rhs )
+          return std::strong_ordering::less;
+        if( lhs > rhs )
+          return std::strong_ordering::greater;
+        return std::strong_ordering::equal;
+      }
+    }
+  };
+
+public:
+
   constexpr bool operator==( const ArrayStack& rhs ) const noexcept
   {
     if( top_ != rhs.top_ ) // different sized stacks are not equal
@@ -225,7 +267,7 @@ public:
 
   constexpr auto operator<=>( const ArrayStack& rhs ) const noexcept
   {
-    // Can't use std::array::operator<=> because we only compare a subset of elements
+    // Can't use std::array::operator<=> because must only compare a subset of elements
     const auto lstart = c_.data();
     const auto lend = lstart + top_;
     const auto rstart = rhs.c_.data();
@@ -235,28 +277,8 @@ public:
 
 private:
 
-  struct SynthThreeWay // for operator<=>
-  {
-    template <typename T, std::totally_ordered_with<T> U>
-    constexpr auto operator()( const T& lhs, const U& rhs ) const noexcept
-    {
-      if constexpr( std::three_way_comparable_with<T, U> )
-        return lhs <=> rhs;
-      else
-      {
-        if( lhs < rhs )
-          return std::strong_ordering::less;
-        else if( lhs > rhs )
-          return std::strong_ordering::greater;
-        return std::strong_ordering::equal;
-      }
-    }
-  };
-
-private:
-
-  // For simplified math, top_ points to where the next element will be pushed
-  // push(x) -> c_[top_++] = x;
+  // For efficiency, top_ points to where the *next* element will be pushed
+  // push(x) -> c_[top_] = x; ++top_;
   // pop()   -> --top_;
   // top()   -> return c_[top_-1];
   // empty() -> return top_ == 0;
