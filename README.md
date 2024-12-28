@@ -1,24 +1,26 @@
-Ever needed or wished for std::stack<T, std::array<T,Capacity>>?
+# array_stack
 
-Then array_stack<T, Capacity> is your friend
+Ever needed or wished for `std::stack<T, std::array<T, Capacity>>`?
 
-array_stack<T, Capacity> implements a stack of objects T, stored on the actual 
-stack using std::array, of maximum size Capacity, compatible with std::stack
+Then `array_stack<T, Capacity>` is your friend.
+
+`array_stack<T, Capacity>` implements a stack of objects `T`, stored on the actual 
+stack using [`std::array`](https://en.cppreference.com/w/cpp/container/array), of maximum size `Capacity`, compatible with [`std::stack`](https://en.cppreference.com/w/cpp/container/stack).
 
 Features:
-* all std::stack methods
+* Header-only implementation; no dependencies other than standard C++ headers
+* supports all `std::stack` methods through C++23
 * constexpr enabled
-* non-throwing by default
-* full(), capacity(), and clear()
-* direct indexing using operator[] (not part of std::stack, but often useful)
+* `full()`, `capacity()`, and `clear()`
+* direct indexing using `operator[]` (not part of `std::stack`, but often useful)
 * comparison operations
 * swap
 * range support
-* optional support for throwing exceptions from push(), pop(), top()
+* non-throwing by default, with optional support for throwing exceptions from `push()`, `pop()`, and `top()`
 
 Doesn't support:
 * custom allocators
-* constructing from std::array; use the range or input iterator ctors instead
+* constructing from `std::array`; use the range or input iterators instead
  
 Requirements:
 * C++23 and up
