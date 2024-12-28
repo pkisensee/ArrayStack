@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  ArrayStack.h
+//  array_stack.h
 //
 //  Copyright © Pete Isensee (PKIsensee@msn.com).
 //  All rights reserved worldwide.
@@ -11,7 +11,34 @@
 // 
 //  This software is provided "as is" and without any express or implied
 //  warranties.
+// 
+// -----------------------------------------------------------------------------
 //
+//  Ever needed or wished for std::stack<T, std::array<T,N>>?
+// 
+//  Then array_stack<T, N> is your friend
+// 
+//  array_stack<T, N> implements a stack of objects T, stored on the actual 
+//  stack using std::array, of maximum capacity N, compatible with std::stack
+// 
+//  Features:
+//  * all std::stack methods
+//  * constexpr enabled
+//  * non-throwing by default
+//  * full(), capacity(), and clear()
+//  * direct indexing using operator[] (not part of std::stack, but often useful)
+//  * comparison operations
+//  * swap
+//  * range support
+// 
+//  Doesn't support:
+//  * custom allocators
+//  * constructing from std::array; use the range or input iterator ctors instead
+//  * exceptions from push(), pop(), top()
+// 
+//  Requirements:
+//  * C++20 and up
+// 
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -25,7 +52,7 @@
 namespace // anonymous
 {
 
-// Define requirements for object comparisons; see SynthThreeWay
+// Requirements for object comparisons; see SynthThreeWay
 template <typename T>
 concept BooleanTestableImpl = std::convertible_to<T, bool>;
 
@@ -66,33 +93,8 @@ constexpr auto MakeArray( Range&& rng )
 namespace PKIsensee
 {
 
-///////////////////////////////////////////////////////////////////////////////
-//
-// Ever needed/wanted std::stack<T, std::array<T,N>>?
-// Then ArrayStack<T, N> is your friend
-// 
-// Features:
-// * all std::stack methods
-// * constexpr enabled
-// * non-throwing
-// * full(), capacity(), and clear()
-// * direct indexing using operator[] (not part of std::stack, but often useful)
-// * comparison operations
-// * swap
-// * range support
-// 
-// Doesn't support:
-// * custom allocators
-// * constructing from std::array; use the range or input iterator ctors instead
-// * exceptions from push(), pop(), top()
-// 
-// Requirements:
-// * C++20 and up
-// 
-///////////////////////////////////////////////////////////////////////////////
-
-template <typename T, size_t N>
-class ArrayStack
+template <typename T, size_t N> // stack that stores objects T; maximum capacity N
+class array_stack
 {
 public:
 
@@ -103,23 +105,23 @@ public:
   using const_reference = typename Array::const_reference;
   using size_type       = typename Array::size_type;
 
-  ArrayStack() = default;
+  array_stack() = default;
 
-  constexpr explicit ArrayStack( const Array& c ) :
+  constexpr explicit array_stack( const Array& c ) :
     c_( c ),
     top_( c.size() )
   {
   }
 
   template <typename InIt>
-  constexpr ArrayStack( InIt first, InIt last ) noexcept( std::is_nothrow_constructible_v<Array, InIt, InIt> ) :
+  constexpr array_stack( InIt first, InIt last ) noexcept( std::is_nothrow_constructible_v<Array, InIt, InIt> ) :
     c_{ MakeArray<InIt, N>( first, last ) },
     top_( static_cast<size_t>( std::distance( first, last ) ) )
   {
   }
 
   template <typename Range>
-  constexpr ArrayStack( std::from_range_t, Range&& rng ) :
+  constexpr array_stack( std::from_range_t, Range&& rng ) :
     c_( MakeArray<Range, N>( rng ) ),
     top_( rng.size() )
   {
@@ -206,7 +208,7 @@ public:
     --top_;
   }
 
-  constexpr void swap( ArrayStack& rhs ) noexcept( std::is_nothrow_swappable<Array>::value )
+  constexpr void swap( array_stack& rhs ) noexcept( std::is_nothrow_swappable<Array>::value )
   {
     // Swap only what is necessary, not the entire arrays
     auto maxTop = std::max( top_, rhs.top_ );
@@ -256,7 +258,7 @@ private:
 
 public:
 
-  constexpr bool operator==( const ArrayStack& rhs ) const noexcept
+  constexpr bool operator==( const array_stack& rhs ) const noexcept
   {
     if( top_ != rhs.top_ ) // different sized stacks are not equal
       return false;
@@ -265,7 +267,7 @@ public:
     return std::equal( start, end, rhs.c_.data() );
   }
 
-  constexpr auto operator<=>( const ArrayStack& rhs ) const noexcept
+  constexpr auto operator<=>( const array_stack& rhs ) const noexcept
   {
     // Can't use std::array::operator<=> because must only compare a subset of elements
     const auto lstart = c_.data();
@@ -286,10 +288,10 @@ private:
   Array c_;
   size_t top_ = 0;
 
-}; // class ArrayStack
+}; // class array_stack
 
 template <typename T, size_t N>
-void constexpr swap( ArrayStack<T, N>& lhs, ArrayStack<T, N>& rhs ) noexcept( noexcept( lhs.swap( rhs ) ) )
+void constexpr swap( array_stack<T, N>& lhs, array_stack<T, N>& rhs ) noexcept( noexcept( lhs.swap( rhs ) ) )
 {
   lhs.swap( rhs );
 }

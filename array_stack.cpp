@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  ArrayStack.cpp
+//  array_stack.cpp
 //
 //  Copyright © Pete Isensee (PKIsensee@msn.com).
 //  All rights reserved worldwide.
@@ -14,7 +14,7 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "ArrayStack.h"
+#include "array_stack.h"
 
 // Implementation file is useful for validating that the header will compile
 // but is otherwise unnecessary
