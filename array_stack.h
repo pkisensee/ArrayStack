@@ -93,12 +93,16 @@ class array_stack
 {
 public:
 
-  using Array           = std::array<T, Capacity>;
-  using container_type  = Array;
-  using value_type      = typename Array::value_type;
-  using reference       = typename Array::reference;
-  using const_reference = typename Array::const_reference;
-  using size_type       = typename Array::size_type;
+  using Array                   = std::array<T, Capacity>;
+  using container_type          = Array;
+  using value_type              = typename Array::value_type;
+  using reference               = typename Array::reference;
+  using const_reference         = typename Array::const_reference;
+  using iterator                = typename Array::iterator;
+  using const_iterator          = typename Array::const_iterator;
+  using reverse_iterator        = typename Array::reverse_iterator;
+  using const_reverse_iterator  = typename Array::const_reverse_iterator;
+  using size_type               = typename Array::size_type;
 
   array_stack() = default;
 
@@ -120,6 +124,70 @@ public:
     top_( std::size( rng ) ),
     c_( MakeArray<Range, Capacity>( rng ) )
   {
+  }
+
+  constexpr iterator begin() noexcept
+  {
+    return c_.begin();
+  }
+
+  constexpr const_iterator begin() const noexcept
+  {
+    return c_.begin();
+  }
+
+  constexpr const_iterator cbegin() const noexcept
+  {
+    return begin();
+  }
+
+  constexpr iterator end() noexcept
+  {
+    // end of stack is top element, not Capacity
+    return begin() + static_cast<ptrdiff_t>( top_ );
+  }
+
+  constexpr const_iterator end() const noexcept
+  {
+    // end of stack is top element, not Capacity
+    return cbegin() + static_cast<ptrdiff_t>( top_ );
+  }
+
+  constexpr const_iterator cend() const noexcept
+  {
+    return end();
+  }
+
+  constexpr reverse_iterator rbegin() noexcept
+  {
+    return c_.rbegin();
+  }
+
+  constexpr const_reverse_iterator rbegin() const noexcept
+  {
+    return c_.rbegin();
+  }
+
+  constexpr const_reverse_iterator crbegin() const noexcept
+  {
+    return rbegin();
+  }
+
+  constexpr reverse_iterator rend() noexcept
+  {
+    // end of stack is top element, not Capacity
+    return rbegin() + static_cast<ptrdiff_t>( top_ );
+  }
+
+  constexpr const_reverse_iterator rend() const noexcept
+  {
+    // end of stack is top element, not Capacity
+    return crbegin() + static_cast<ptrdiff_t>( top_ );
+  }
+
+  constexpr const_reverse_iterator crend() const noexcept
+  {
+    return rend();
   }
 
   constexpr bool empty() const noexcept
@@ -296,6 +364,7 @@ private:
   // pop()   -> --top_;
   // top()   -> return c_[top_-1];
   // empty() -> return top_ == 0;
+  // end()   -> return c_ + top_;
 
   size_t top_ = 0;
   Array c_;
