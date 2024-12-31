@@ -98,9 +98,7 @@ public:
   using value_type              = typename Array::value_type;
   using reference               = typename Array::reference;
   using const_reference         = typename Array::const_reference;
-  using iterator                = typename Array::iterator;
   using const_iterator          = typename Array::const_iterator;
-  using reverse_iterator        = typename Array::reverse_iterator;
   using const_reverse_iterator  = typename Array::const_reverse_iterator;
   using size_type               = typename Array::size_type;
 
@@ -126,11 +124,7 @@ public:
   {
   }
 
-  constexpr iterator begin() noexcept
-  {
-    return c_.begin();
-  }
-
+  // Read-only access to stack elements permitted
   constexpr const_iterator begin() const noexcept
   {
     return c_.begin();
@@ -139,12 +133,6 @@ public:
   constexpr const_iterator cbegin() const noexcept
   {
     return begin();
-  }
-
-  constexpr iterator end() noexcept
-  {
-    // end of stack is top element, not Capacity
-    return begin() + static_cast<ptrdiff_t>( top_ );
   }
 
   constexpr const_iterator end() const noexcept
@@ -158,11 +146,7 @@ public:
     return end();
   }
 
-  constexpr reverse_iterator rbegin() noexcept
-  {
-    return c_.rbegin();
-  }
-
+  // Read-only access to stack elements permitted
   constexpr const_reverse_iterator rbegin() const noexcept
   {
     return c_.rbegin();
@@ -171,12 +155,6 @@ public:
   constexpr const_reverse_iterator crbegin() const noexcept
   {
     return rbegin();
-  }
-
-  constexpr reverse_iterator rend() noexcept
-  {
-    // end of stack is top element, not Capacity
-    return rbegin() + static_cast<ptrdiff_t>( top_ );
   }
 
   constexpr const_reverse_iterator rend() const noexcept
@@ -274,13 +252,8 @@ public:
     std::swap( top_, rhs.top_ );
   }
 
+  // Read-only access to stack elemensts permitted
   constexpr const_reference operator[]( size_type i ) const noexcept
-  {
-    assert( i < size() );
-    return c_[i];
-  }
-
-  constexpr reference operator[]( size_type i ) noexcept
   {
     assert( i < size() );
     return c_[i];
