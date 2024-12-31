@@ -12,7 +12,8 @@ Features:
 * supports all `std::stack` methods through C++23
 * constexpr enabled
 * `full()`, `capacity()`, and `clear()`
-* direct indexing using `operator[]` (not part of `std::stack`, but often useful)
+* `operator[]` for read-only inspection (not part of `std::stack`, but often useful)
+* `begin()/end()` for read-only inspection and range operations
 * comparison operations
 * swap
 * range support
