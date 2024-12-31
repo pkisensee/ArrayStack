@@ -19,6 +19,4 @@
 // Implementation file is useful for validating that the header will compile
 // but is otherwise unnecessary
 
-using namespace PKIsensee;
-
 ///////////////////////////////////////////////////////////////////////////////

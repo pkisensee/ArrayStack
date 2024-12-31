@@ -291,7 +291,7 @@ private:
 
 private:
 
-  // For efficiency, top_ points to where the *next* element will be pushed
+  // top_ points to where the *next* element will be pushed
   // push(x) -> c_[top_] = x; ++top_;
   // pop()   -> --top_;
   // top()   -> return c_[top_-1];
