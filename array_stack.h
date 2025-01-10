@@ -259,6 +259,13 @@ public:
     return c_[i];
   }
 
+  constexpr reference operator[]( size_type i ) noexcept
+  {
+    assert( i < size() );
+    return c_[i];
+  }
+
+
 private:
 
   // Synthesize a comparison operation even for objects that don't support <=> operator.
