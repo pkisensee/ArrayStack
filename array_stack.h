@@ -347,7 +347,7 @@ private:
 #endif
   }
 
-  void CheckForFullStack( size_t elementsToAdd ) const
+  void CheckForFullStack( [[maybe_unused]] size_t elementsToAdd ) const
   {
 #if defined(PK_ENABLE_EXCEPTIONS)
     if( ( size() + elementsToAdd ) > capacity() )
